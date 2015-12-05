@@ -21,13 +21,18 @@ startCqpServer <- function(registryDir=NULL, initFile, debugMode=TRUE){
 }
 
 
+  
+
 #' authenticate with cqpserver
 #' 
+#' @param host host, defaults to 'localhost'
+#' @param port port, defaults to '4877'
 #' @param user user name
 #' @param pw password
 #' @export authenticate
 #' @rdname cqpserver
-authenticate <- function(user, pw){
+authenticate <- function(host="localhost", port="4877", user="anonymous", pw=""){
+  conn <- socketConnection(host, port, open="wb")
   writeBin(c(as.raw(0), as.raw(17), as.raw(1), as.raw(0)), conn)
   # writeBin(c(as.raw(16), as.raw(1), c("\x11\x01"), conn)
   writeBin(as.raw(nchar(user)), conn)
