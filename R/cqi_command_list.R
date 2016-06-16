@@ -78,7 +78,7 @@ cqiCmdSpec <- list(
 hexToRaw <- function(x){
   xHexs <- format(as.hexmode(unlist(x)), width=4)
   xAsRaw <- lapply(
-    xHex,
+    xHexs,
     function(xHex){
       c(
         as.raw(as.hexmode(substr(xHex, start=1, stop=2))),
@@ -90,3 +90,9 @@ hexToRaw <- function(x){
 }
 
 cqiCmd <- hexToRaw(cqiCmdSpec)
+
+cqiMsg <- setNames(names(cqiCmdSpec), unlist(cqiCmdSpec))
+
+rawToMsg <- function(x){
+  cqiMsg[as.character(as.integer(x[1])*256 + as.integer(x[2]))]
+}

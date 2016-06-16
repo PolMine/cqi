@@ -15,3 +15,6 @@ License: CC BY-NC-SA 4.0 | file LICENSE
 Collate:
     'cqi_package.R'
     'cqi_functions.R'
+    'cqi_command_list.R'
+    'type_conversion.R'
+    'utils.R'
