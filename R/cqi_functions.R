@@ -42,7 +42,7 @@ startServer <- function(
 authenticate <- function(host="localhost", port="4877", user="anonymous", pw=""){
   conn <- socketConnection(host, port, open="wb")
   writeBin(c(as.raw(0), unname(unlist(cqiCmd[["CQI_CTRL_CONNECT"]])), as.raw(0)), conn)
-  writeBin(as.raw(nchar(user)), conn)
+  cwriteBin(as.raw(nchar(user)), conn)
   writeBin(user, conn)
   
   writeBin(as.raw(nchar(pw)), conn)
@@ -54,7 +54,8 @@ authenticate <- function(host="localhost", port="4877", user="anonymous", pw="")
 }
 
 cqi_list_corpora <- function(conn){
-  writeBin(c(unname(unlist(cqiCmd[["CQI_CORPUS_LIST_CORPORA"]])), as.raw(0)), conn)
+  cqi_send_word(cqiCmd[["CQI_CORPUS_LIST_CORPORA"]], conn)
+  # writeBin(c(unname(unlist(cqiCmd[["CQI_CORPUS_LIST_CORPORA"]])), as.raw(0)), conn)
   status <- readBin(conn, what="raw", n=2)
   cqi_read_string_list(conn)
 }
