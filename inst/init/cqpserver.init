@@ -1,3 +1,2 @@
 host *;
 user anonymous "";
-user blaette "simsalabim";

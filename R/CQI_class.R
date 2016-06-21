@@ -1,7 +1,5 @@
-# cqpserver -I /Library/Frameworks/R.framework/Versions/3.2/Resources/library/cqi/init/cqpserver.init -r /Users/blaette/Lab/cwb/registry
-# cqpserver -I /home/blaette/tmp/cqpserver.init -r /var/local/cwb/registry_files -P 8787
-# foo$authenticate("polmine.sowi.uni-due.de", "8787", "blaette", "simsalabim")
-
+#' @exportClass CQI
+#' @importFrom R6 R6Class
 CQI <- R6Class(
   
   "CQI",
@@ -13,124 +11,269 @@ CQI <- R6Class(
   public = list(
     connection = NULL,
     
-    cqi_send_int = function(x){
+    authenticate = function(host="localhost", port="4877", user="anonymous", pw=""){
+      self$connection <- socketConnection(host, port, open="wb")
+      self$send_word(cqiCmd[["CQI_CTRL_CONNECT"]])
+      self$send_string(user)
+      self$send_string(pw)
+      Sys.sleep(0.1)
+      status <- self$read_word()
+      message("... ", rawToMsg(status))
+    },
+    
+    send_byte = function(x){},
+    send_byte_list = function(x){},
+    read_byte = function(){},
+    read_byte_list = function(){},
+    
+    
+    send_int = function(x){
       writeBin(longIntToRaw(x), self$connection)  
     },
     
-    cqi_send_int_list = function(x){
+    send_int_list = function(x){
       writeBin(longIntToRaw(length(x)), self$connection)  
-      sapply(x, self$cqi_send_int)
+      invisible(sapply(x, self$send_int))
     },
     
-    cqi_send_word = function(x){
+    send_word = function(x){
       writeBin(c(as.raw(0), unname(unlist(x))), self$connection)
     },
     
-    cqi_read_word = function(n=2){
+    send_word_list = function(x){
+    },
+    
+    
+    read_word = function(n=2){
       readBin(self$connection, what="raw", n=n)
     },
     
-    cqi_read_string = function(){
-      strLengthRaw <- self$cqi_read_word()
+    read_word_list = function(){},
+    
+    read_string = function(){
+      strLengthRaw <- self$read_word()
       strLength <- as.integer(strLengthRaw[length(strLengthRaw)])
       strRaw <- readBin(self$connection, what="raw", n=strLength)
       rawToChar(strRaw)
     },
     
-    cqi_expect_string = function(){
-      self$cqi_read_word()
-      self$cqi_read_string()
+    expect_string = function(){
+      self$read_word()
+      self$read_string()
     },
     
-    cqi_send_string = function(x){
+    send_string = function(x){
       writeBin(longIntToRaw(nchar(x))[3:4], self$connection)
       writeLines(x, self$connection, sep="")
     },
     
-    cqi_send_string_list = function(strs){
-      self$cqi_send_int(length(strs))
-      sapply(strs, self$cqi_send_string)
+    send_string_list = function(strs){
+      self$send_int(length(strs))
+      invisible(sapply(strs, self$send_string)
     },
     
-    cqi_read_int = function(){
+    read_int = function(){
       lenRaw <- readBin(self$connection, what="raw", n=4)
       rawToInt(lenRaw)
     },
     
-    cqi_expect_int = function(){
+    read_int_list = function(){
+      len <- self$read_int()
+      sapply(c(1:len), function(x)self$read_int())
+    },
+    
+    expect_int = function(){
       #status <- readBin(self$connection, what="raw", n=2)
-      self$cqi_read_word()
-      self$cqi_read_int()
+      self$read_word()
+      self$read_int()
     },
     
-    cqi_expect_int_list = function(){
-      self$cqi_read_word() # status message
-      len <- self$cqi_read_int()
-      sapply(c(1:len), function(i) self$cqi_read_int())
+    expect_int_list = function(){
+      self$read_word() # status message
+      len <- self$read_int()
+      sapply(c(1:len), function(i) self$read_int())
     },
     
-    cqi_read_string_list = function(){
-      len <- self$cqi_read_int()
-      sapply(c(1:len), function(i) self$cqi_read_string())
+    read_int_table = function(){},
+    
+    read_string_list = function(){
+      len <- self$read_int()
+      sapply(c(1:len), function(i) self$read_string())
     },
     
-    cqi_expect_string_list = function(){
-      self$cqi_read_word()
-      self$cqi_read_string_list()
+    expect_string_list = function(){
+      self$read_word()
+      self$read_string_list()
     },
     
-    authenticate = function(host="localhost", port="4877", user="anonymous", pw=""){
-      self$connection <- socketConnection(host, port, open="wb")
-      self$cqi_send_word(cqiCmd[["CQI_CTRL_CONNECT"]])
-      self$cqi_send_string(user)
-      self$cqi_send_string(pw)
+    ##### public ####
+    
+    list_corpora = function(){
+      self$send_word(cqiCmd[["CQI_CORPUS_LIST_CORPORA"]])
       Sys.sleep(0.1)
-      status <- self$cqi_read_word()
+      self$read_word()
+      self$read_string_list()
+    },
+    
+    attributes = function(corpus, type){
+      if (type == "p"){
+        self$send_word(cqiCmd[["CQI_CORPUS_POSITIONAL_ATTRIBUTES"]])
+        self$send_string(corpus)
+      } else if (type == "s"){
+        self$send_word(cqiCmd[["CQI_CORPUS_STRUCTURAL_ATTRIBUTES"]])
+        self$send_string(corpus)
+      }
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_string_list()
+    },
+    
+    attribute_size = function(corpus, attribute){
+      self$send_word(cqiCmd[["CQI_CL_ATTRIBUTE_SIZE"]])
+      self$send_string(paste(corpus, attribute, sep="."))
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_int()
+    },
+    
+    lexicon_size = function(corpus, pAttribute){
+      self$send_word(cqiCmd[["CQI_CL_LEXICON_SIZE"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_int()
+    },
+    
+    charset = function(corpus){
+      self$send_word(cqiCmd[["CQI_CORPUS_CHARSET"]])
+      self$send_string(corpus)
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_string()
+    },
+    
+    cpos2struc = function(corpus, pAttribute, cpos){
+      self$send_word(cqiCmd[["CQI_CL_CPOS2STRUC"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      self$send_int_list(cpos)
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_int_list()
+    },
+    
+    cpos2str = function(corpus, pAttribute, cpos){
+      self$send_word(cqiCmd[["CQI_CL_CPOS2STR"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      self$send_int_list(cpos)
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_string_list()
+    },
+    
+    cpos2id = function(corpus, pAttribute, cpos){
+      self$send_word(cqiCmd[["CQI_CL_CPOS2ID"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      self$send_int_list(cpos)
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_int_list()
+    },
+    
+    struc2cpos = function(corpus, sAttribute, struc){
+      self$send_word(cqiCmd[["CQI_CL_STRUC2CPOS"]])
+      self$send_string(paste(corpus, sAttribute, sep="."))
+      self$send_int(struc)
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      cposLeft <- self$expect_int()
+      cposRight <- self$read_int()
+      c(cposLeft, cposRight)
+    },
+    
+    id2str = function(corpus, pAttribute, ids){
+      self$send_word(cqiCmd[["CQI_CL_ID2STR"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      self$send_int_list(ids)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      # Sys.sleep(0.1)
+      self$expect_string_list()
+    },
+    
+    struc2str = function(corpus, sAttribute, struc){
+      self$send_word(cqiCmd[["CQI_CL_STRUC2STR"]])
+      self$send_string(paste(corpus, sAttribute, sep="."))
+      self$send_int_list(struc)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      # Sys.sleep(0.1)
+      self$expect_string_list()
+    },
+    
+    regex2id = function(corpus, pAttribute, regex){
+      
+    },
+    
+    str2id = function(corpus, pAttribute, strs){
+      self$send_word(cqiCmd[["CQI_CL_STR2ID"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      self$send_string_list(strs)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      # Sys.sleep(0.1)
+      self$expect_int_list()
+    },
+    
+    id2freq = function(corpus, pAttribute, id){
+    },
+    
+    id2cpos = function(corpus, pAttribute, id){
+      self$send_word(cqiCmd[["CQI_CL_ID2CPOS"]])
+      self$send_string(paste(corpus, pAttribute, sep="."))
+      self$send_int(id)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.1)
+      self$read_word()
+      self$read_int_list()
+    },
+    
+    cpos2lbound = function(corpus, sAttribute, cpos){
+    },
+    
+    cpos2rbound = function(corpus, sAttribute, cpos){
+    },
+    
+    query = function(corpus, query){
+      self$send_word(cqiCmd[["CQI_CQP_QUERY"]])
+      self$send_string(corpus)
+      self$send_string("Hits")
+      self$send_string(query)
+      # Sys.sleep(1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      status <- self$read_word()
       message("... ", rawToMsg(status))
     },
     
-    cqi_list_corpora = function(){
-      self$cqi_send_word(cqiCmd[["CQI_CORPUS_LIST_CORPORA"]])
-      Sys.sleep(0.1)
-      self$cqi_read_word()
-      self$cqi_read_string_list()
+    subcorpus_size = function(corpus) {
+      self$send_word(cqiCmd[["CQI_CQP_SUBCORPUS_SIZE"]])
+      self$send_string(paste(corpus, "Hits", sep=":"))
+      # Sys.sleep(0.1)
+      while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+      self$expect_int()
     },
     
-    cqi_attribute_size = function(attribute){
-      self$cqi_send_word(cqiCmd[["CQI_CL_ATTRIBUTE_SIZE"]])
-      self$cqi_send_string(attribute)
-      Sys.sleep(0.1)
-      self$cqi_expect_int()
-    },
-    
-    cqi_charset = function(corpus){
-      self$cqi_send_word(cqiCmd[["CQI_CORPUS_CHARSET"]])
-      self$cqi_send_string(corpus)
-      Sys.sleep(0.1)
-      self$cqi_expect_string()
-    },
-    
-    cqi_lexicon_size = function(attribute){
-      self$cqi_send_word(cqiCmd[["CQI_CL_LEXICON_SIZE"]])
-      self$cqi_send_string(attribute)
-      Sys.sleep(0.1)
-      self$cqi_expect_int()
-    },
-    
-    cqi_str2id = function(attribute, strs){
-      self$cqi_send_word(cqiCmd[["CQI_CL_STR2ID"]])
-      self$cqi_send_string(attribute)
-      self$cqi_send_string_list(strs)
-      Sys.sleep(0.1)
-      self$cqi_expect_int_list()
-    },
-    
-    cqi_id2str = function(attribute, ids){
-      self$cqi_send_word(cqiCmd[["CQI_CL_ID2STR"]])
-      self$cqi_send_string(attribute)
-      self$cqi_send_int_list(ids)
-      Sys.sleep(0.1)
-      self$cqi_expect_string_list()
+    dump_subcorpus = function(corpus){
+      last <- self$subcorpus_size(corpus)
+      beginAndEnd <- lapply(
+        c(0x10, 0x11),
+        function(what){
+          self$send_word(cqiCmd[["CQI_CQP_DUMP_SUBCORPUS"]])
+          self$send_string(paste(corpus, "Hits", sep=":"))
+          writeBin(hexToRaw(what)[[1]][2], self$connection)
+          self$send_int(0)
+          self$send_int(last - 1)
+          # Sys.sleep(0.1)
+          while (socketSelect(list(self$connection)) == FALSE) Sys.sleep(0.01)
+          self$expect_int_list()
+        }
+      )
+      do.call(cbind, beginAndEnd)
     }
     
   )

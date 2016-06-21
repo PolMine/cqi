@@ -1,3 +1,19 @@
+hexToRaw <- function(x){
+  xHexs <- format(as.hexmode(unlist(x)), width=4)
+  xAsRaw <- lapply(
+    xHexs,
+    function(xHex){
+      c(
+        as.raw(as.hexmode(substr(xHex, start=1, stop=2))),
+        as.raw(as.hexmode(substr(xHex, start=3, stop=4)))
+      )
+    })
+  names(xAsRaw) <- names(x)
+  xAsRaw
+}
+
+
+#' @include utils.R
 cqiCmdSpec <- list(
   "CQI_STATUS_OK" = 0x0101,
   "CQI_STATUS_CONNECT_OK" = 0x0102,
@@ -75,24 +91,7 @@ cqiCmdSpec <- list(
   "CQI_CQP_FDIST_2" = 0x1511
 )
 
-hexToRaw <- function(x){
-  xHexs <- format(as.hexmode(unlist(x)), width=4)
-  xAsRaw <- lapply(
-    xHexs,
-    function(xHex){
-      c(
-        as.raw(as.hexmode(substr(xHex, start=1, stop=2))),
-        as.raw(as.hexmode(substr(xHex, start=3, stop=4)))
-      )
-  })
-  names(xAsRaw) <- names(x)
-  xAsRaw
-}
 
 cqiCmd <- hexToRaw(cqiCmdSpec)
-
 cqiMsg <- setNames(names(cqiCmdSpec), unlist(cqiCmdSpec))
 
-rawToMsg <- function(x){
-  cqiMsg[as.character(as.integer(x[1])*256 + as.integer(x[2]))]
-}

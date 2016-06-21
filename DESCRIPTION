@@ -1,20 +1,20 @@
 Package: cqi
 Type: Package
 Title: R implementation of the client-server protocol for the CWB (CQI)
-Version: 0.0.1
-Date: 2015-12-05
+Version: 0.1.1
+Date: 2015-06-20
 Author: Andreas Blaette
 Maintainer: Andreas Blaette <andreas.blaette@uni-due.de>
 Imports:
-    methods
-Suggests:
+    R6
 VignetteBuilder: knitr
 LazyData: yes
 Description: R implementation of the client-server protocol for the CWB (CQI)
 License: CC BY-NC-SA 4.0 | file LICENSE
 Collate:
-    'cqi_package.R'
-    'cqi_functions.R'
-    'cqi_command_list.R'
-    'type_conversion.R'
+    'CQI_class.R'
     'utils.R'
+    'cqi_command_list.R'
+    'cqi_package.R'
+    'cqpserver.R'
+RoxygenNote: 5.0.1
